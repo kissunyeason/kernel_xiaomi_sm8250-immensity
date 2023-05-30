@@ -145,15 +145,17 @@ tests() {
 	n1 iperf3 -Z -t 3 -b 0 -u -c fd00::2
 
 	# TCP over IPv4, in parallel
-	local pids=( ) i
-	for ((i=0; i < NPROC; ++i)) do
-		n2 iperf3 -p $(( 5200 + i )) -s -1 -B 192.168.241.2 &
-		pids+=( $! ); waitiperf $netns2 $! $(( 5200 + i ))
+	for max in 4 5 50; do
+		local pids=( )
+		for ((i=0; i < max; ++i)) do
+			n2 iperf3 -p $(( 5200 + i )) -s -1 -B 192.168.241.2 &
+			pids+=( $! ); waitiperf $netns2 $! $(( 5200 + i ))
+		done
+		for ((i=0; i < max; ++i)) do
+			n1 iperf3 -Z -t 3 -p $(( 5200 + i )) -c 192.168.241.2 &
+		done
+		wait "${pids[@]}"
 	done
-	for ((i=0; i < NPROC; ++i)) do
-		n1 iperf3 -Z -t 3 -p $(( 5200 + i )) -c 192.168.241.2 &
-	done
-	wait "${pids[@]}"
 }
 
 [[ $(ip1 link show dev wg0) =~ mtu\ ([0-9]+) ]] && orig_mtu="${BASH_REMATCH[1]}"
@@ -280,6 +282,7 @@ read _ _ tx_bytes_before < <(n0 wg show wg1 transfer)
 ! n0 ping -W 1 -c 10 -f 192.168.241.2 || false
 sleep 1
 read _ _ tx_bytes_after < <(n0 wg show wg1 transfer)
+<<<<<<< HEAD
 if ! (( tx_bytes_after - tx_bytes_before < 70000 )); then
 	errstart=$'\x1b[37m\x1b[41m\x1b[1m'
 	errend=$'\x1b[0m'
@@ -293,6 +296,9 @@ if ! (( tx_bytes_after - tx_bytes_before < 70000 )); then
 	echo "${errstart} onward. :(                                     ${errend}"
 	echo "${errstart}                                                ${errend}"
 fi
+=======
+(( tx_bytes_after - tx_bytes_before < 70000 ))
+>>>>>>> fee4b79c4cbab8a2322b92474b85f4bcbd940505
 
 ip0 link del wg1
 ip1 link del wg0
